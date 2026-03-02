@@ -1,0 +1,30 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary
+*.test
+
+# Output of go coverage
+*.out
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Tokens storage (may contain secrets)
+tokens/*.json
+
+# Config with secrets
+config.local.yaml
+
+# OS
+.DS_Store
+Thumbs.db
+
+CLAUDE.md

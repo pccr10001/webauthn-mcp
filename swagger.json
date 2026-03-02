@@ -1,0 +1,504 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "WebAuthn MCP API",
+    "description": "WebAuthn soft token simulator for penetration testing and automated testing",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "Local development server"
+    }
+  ],
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
+  "paths": {
+    "/api/token": {
+      "post": {
+        "summary": "Create a new token",
+        "tags": ["Token"],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTokenRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Token created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "List all tokens",
+        "tags": ["Token"],
+        "responses": {
+          "200": {
+            "description": "List of tokens",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TokenResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/token/{id}": {
+      "get": {
+        "summary": "Get token info",
+        "tags": ["Token"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Token info",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Token not found"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete token",
+        "tags": ["Token"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Token deleted"
+          },
+          "404": {
+            "description": "Token not found"
+          }
+        }
+      }
+    },
+    "/api/token/{id}/credentials": {
+      "get": {
+        "summary": "List credentials in token",
+        "tags": ["Credential"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CredentialResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/token/{id}/credentials/{credId}": {
+      "delete": {
+        "summary": "Delete credential",
+        "tags": ["Credential"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "credId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Credential deleted"
+          },
+          "404": {
+            "description": "Credential not found"
+          }
+        }
+      }
+    },
+    "/api/token/{id}/register": {
+      "post": {
+        "summary": "Generate registration response",
+        "tags": ["WebAuthn"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Registration response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/token/{id}/authenticate": {
+      "post": {
+        "summary": "Generate authentication response",
+        "tags": ["WebAuthn"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthenticateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authentication response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Health check",
+        "tags": ["Health"],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Service is healthy"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key"
+      }
+    },
+    "schemas": {
+      "CreateTokenRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Optional token name"
+          }
+        }
+      },
+      "TokenResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "credential_count": {
+            "type": "integer"
+          }
+        }
+      },
+      "CredentialResponse": {
+        "type": "object",
+        "properties": {
+          "credential_id": {
+            "type": "string"
+          },
+          "rp_id": {
+            "type": "string"
+          },
+          "user_handle": {
+            "type": "string"
+          },
+          "user_name": {
+            "type": "string"
+          },
+          "user_display_name": {
+            "type": "string"
+          },
+          "counter": {
+            "type": "integer"
+          },
+          "resident_key": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "RegisterRequest": {
+        "type": "object",
+        "required": ["request"],
+        "properties": {
+          "request": {
+            "type": "object",
+            "required": ["challenge", "rp", "user"],
+            "properties": {
+              "challenge": {
+                "type": "string",
+                "description": "Base64URL encoded challenge"
+              },
+              "rp": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              },
+              "user": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "displayName": {
+                    "type": "string"
+                  }
+                }
+              },
+              "attestation": {
+                "type": "string",
+                "enum": ["none", "packed"]
+              },
+              "residentKey": {
+                "type": "string",
+                "enum": ["required", "preferred", "discouraged"]
+              }
+            }
+          },
+          "overrides": {
+            "type": "object",
+            "properties": {
+              "origin": {
+                "type": "string"
+              },
+              "rp_id": {
+                "type": "string"
+              },
+              "user_verification": {
+                "type": "boolean"
+              },
+              "user_present": {
+                "type": "boolean"
+              },
+              "counter": {
+                "type": "integer"
+              },
+              "attestation_type": {
+                "type": "string"
+              },
+              "transport": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "invalid_signature": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      },
+      "RegisterResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "type": "object"
+          },
+          "credential": {
+            "$ref": "#/components/schemas/CredentialResponse"
+          }
+        }
+      },
+      "AuthenticateRequest": {
+        "type": "object",
+        "required": ["request"],
+        "properties": {
+          "request": {
+            "type": "object",
+            "required": ["challenge", "rpId"],
+            "properties": {
+              "challenge": {
+                "type": "string"
+              },
+              "rpId": {
+                "type": "string"
+              },
+              "allowCredentials": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "credential_id": {
+            "type": "string",
+            "description": "Optional credential ID for non-resident key"
+          },
+          "overrides": {
+            "type": "object",
+            "properties": {
+              "origin": {
+                "type": "string"
+              },
+              "rp_id": {
+                "type": "string"
+              },
+              "user_verification": {
+                "type": "boolean"
+              },
+              "user_present": {
+                "type": "boolean"
+              },
+              "counter": {
+                "type": "integer"
+              },
+              "invalid_signature": {
+                "type": "boolean"
+              },
+              "wrong_credential": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      },
+      "AuthenticateResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "type": "object"
+          },
+          "counter": {
+            "type": "integer"
+          }
+        }
+      }
+    }
+  }
+}
