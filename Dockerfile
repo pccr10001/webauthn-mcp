@@ -29,6 +29,4 @@ ENV WEBAUTHN_MCP_STORAGE_PATH=/data/tokens
 
 EXPOSE 8080
 
-USER appuser
-
 ENTRYPOINT ["/usr/local/bin/webauthn-mcp"]
