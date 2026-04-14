@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WebAuthn Proxy</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-title">
+      <svg class="logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+      <span>WebAuthn Proxy</span>
+    </div>
+    <label class="toggle" title="Enable / disable proxying">
+      <input type="checkbox" id="enableToggle" />
+      <span class="toggle-slider"></span>
+    </label>
+  </div>
+
+  <!-- Server Settings -->
+  <section class="section">
+    <div class="section-header">
+      <span>Server</span>
+      <span id="statusDot" class="status-dot" title="Connection status"></span>
+    </div>
+
+    <div class="form-group">
+      <label for="serverUrl">URL</label>
+      <input type="text" id="serverUrl" placeholder="http://localhost:8080" autocomplete="off" spellcheck="false" />
+    </div>
+
+    <div class="form-group">
+      <label for="apiKey">API Key</label>
+      <input type="password" id="apiKey" placeholder="Leave empty if not configured" />
+    </div>
+
+    <div class="btn-row">
+      <button id="testBtn" class="btn btn-ghost">Test</button>
+      <button id="saveBtn" class="btn btn-primary">Save</button>
+    </div>
+  </section>
+
+  <!-- Token List -->
+  <section class="section">
+    <div class="section-header">
+      <span>Tokens</span>
+      <button id="refreshBtn" class="icon-btn" title="Refresh token list">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+        </svg>
+      </button>
+    </div>
+
+    <div id="tokenList" class="token-list">
+      <div class="empty-state">Loading…</div>
+    </div>
+
+    <!-- Inline create form (hidden by default) -->
+    <div id="createTokenForm" class="create-form hidden">
+      <input type="text" id="newTokenName" placeholder="Token name (optional)" maxlength="64" />
+      <div class="btn-row">
+        <button id="cancelCreateBtn" class="btn btn-ghost">Cancel</button>
+        <button id="confirmCreateBtn" class="btn btn-primary">Create</button>
+      </div>
+    </div>
+
+    <button id="createTokenBtn" class="btn btn-full btn-ghost">+ New Token</button>
+  </section>
+
+  <!-- Credential Panel (shown when a token row is expanded) -->
+  <section id="credentialSection" class="section hidden">
+    <div class="section-header">
+      <span id="credentialTitle">Credentials</span>
+      <button id="refreshCredsBtn" class="icon-btn" title="Refresh credentials">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+        </svg>
+      </button>
+    </div>
+    <div id="credentialList" class="credential-list">
+      <div class="empty-state">No credentials</div>
+    </div>
+  </section>
+
+  <!-- Toast notification -->
+  <div id="toast" class="toast"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
