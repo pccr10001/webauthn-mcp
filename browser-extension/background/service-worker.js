@@ -12,6 +12,30 @@ const DEFAULT_SETTINGS = {
   enabled: true,
 };
 
+// ── Pending credential selections ────────────────────────────────────────────
+//
+// When a WEBAUTHN_GET is intercepted, the service worker opens a selector
+// popup window and stores a pending Promise here (keyed by a random requestId).
+// The selector page resolves/rejects the promise via CREDENTIAL_SELECTED or
+// CREDENTIAL_CANCELLED messages. Closing the popup window without selecting
+// is treated as a cancellation via chrome.windows.onRemoved.
+//
+// Map<requestId, { resolve, reject, windowId, tokenId, credentials, rpId }>
+
+const pendingSelections = new Map();
+
+chrome.windows.onRemoved.addListener((windowId) => {
+  for (const [requestId, entry] of pendingSelections.entries()) {
+    if (entry.windowId === windowId) {
+      pendingSelections.delete(requestId);
+      entry.reject(
+        new DOMException('User cancelled passkey selection', 'NotAllowedError')
+      );
+      break;
+    }
+  }
+});
+
 // ── Storage helpers ──────────────────────────────────────────────────────────
 
 async function getSettings() {
@@ -138,6 +162,44 @@ async function handleMessage(msg) {
       return { success: true };
     }
 
+    // ── Credential selector (used by selector popup) ──────────────────────────
+    case 'GET_CREDENTIAL_SELECTION': {
+      const entry = pendingSelections.get(msg.requestId);
+      if (!entry) {
+        return { success: false, error: 'Request not found or expired' };
+      }
+      return {
+        success: true,
+        data: {
+          tokenId: entry.tokenId,
+          credentials: entry.credentials,
+          rpId: entry.rpId,
+        },
+      };
+    }
+
+    case 'CREDENTIAL_SELECTED': {
+      const entry = pendingSelections.get(msg.requestId);
+      if (!entry) {
+        return { success: false, error: 'Request not found or expired' };
+      }
+      pendingSelections.delete(msg.requestId);
+      entry.resolve(msg.credentialId);
+      return { success: true };
+    }
+
+    case 'CREDENTIAL_CANCELLED': {
+      const entry = pendingSelections.get(msg.requestId);
+      if (!entry) {
+        return { success: false, error: 'Request not found or expired' };
+      }
+      pendingSelections.delete(msg.requestId);
+      entry.reject(
+        new DOMException('User cancelled passkey selection', 'NotAllowedError')
+      );
+      return { success: true };
+    }
+
     // ── Connection test ──────────────────────────────────────────────────────
     case 'TEST_CONNECTION': {
       try {
@@ -212,10 +274,59 @@ async function handleGet(settings, msg) {
 
   const opts = msg.options;
 
+  // Fetch all credentials stored in this token
+  let allCreds = [];
+  try {
+    const credResult = await apiRequest(
+      settings,
+      'GET',
+      `/api/token/${settings.activeTokenId}/credentials`
+    );
+    allCreds = credResult || [];
+  } catch (_) {
+    // If credential list is unavailable, fall through to direct authenticate
+  }
+
+  // Narrow to credentials matching the RP ID
+  let relevantCreds = opts.rpId
+    ? allCreds.filter((c) => c.rp_id === opts.rpId)
+    : allCreds;
+
+  // Further narrow by allowCredentials IDs when the site specifies them.
+  // If ID-based filtering yields no results (e.g. format mismatch), keep the
+  // rpId-filtered list so the user still sees candidates.
+  if (opts.allowCredentials && opts.allowCredentials.length > 0) {
+    const allowedIds = new Set(opts.allowCredentials.map((c) => c.id));
+    const byId = relevantCreds.filter((c) => allowedIds.has(c.credential_id));
+    if (byId.length > 0) {
+      relevantCreds = byId;
+    }
+  }
+
+  // Show selector popup when there are credentials to choose from
+  let selectedCredentialId = null;
+
+  if (relevantCreds.length > 0) {
+    try {
+      selectedCredentialId = await showCredentialSelector(
+        settings.activeTokenId,
+        relevantCreds,
+        opts.rpId || null
+      );
+    } catch (err) {
+      // User cancelled or window was closed — surface as NotAllowedError
+      throw err;
+    }
+  }
+
+  // Build authenticate request, restricting to the chosen credential if one
+  // was selected, otherwise pass the original allowCredentials list
   const authenticateRequest = {
     challenge: opts.challenge,
     rpId: opts.rpId,
-    allowCredentials: opts.allowCredentials || [],
+    allowCredentials: selectedCredentialId
+      ? [{ type: 'public-key', id: selectedCredentialId }]
+      : opts.allowCredentials || [],
     userVerification: opts.userVerification || 'preferred',
   };
 
@@ -241,4 +352,40 @@ async function handleGet(settings, msg) {
     }
     throw err;
   }
+}
+
+// ── Credential selector popup ────────────────────────────────────────────────
+
+function showCredentialSelector(tokenId, credentials, rpId) {
+  return new Promise((resolve, reject) => {
+    const requestId =
+      Date.now().toString(36) + Math.random().toString(36).slice(2);
+
+    pendingSelections.set(requestId, {
+      resolve,
+      reject,
+      windowId: null,
+      tokenId,
+      credentials,
+      rpId,
+    });
+
+    const url =
+      chrome.runtime.getURL('selector/selector.html') +
+      '?requestId=' +
+      encodeURIComponent(requestId);
+
+    chrome.windows.create(
+      { url, type: 'popup', width: 400, height: 480, focused: true },
+      (win) => {
+        if (chrome.runtime.lastError || !win) {
+          pendingSelections.delete(requestId);
+          reject(new Error('Failed to open credential selector'));
+          return;
+        }
+        const entry = pendingSelections.get(requestId);
+        if (entry) entry.windowId = win.id;
+      }
+    );
+  });
 }
